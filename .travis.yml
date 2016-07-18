@@ -1,0 +1,17 @@
+sudo: required
+
+language: erlang
+otp_release:
+  - 19.0
+  - 18.3
+  - 17.5
+
+services:
+  - docker
+
+before_install:
+  - docker run -dp 8500:8500/tcp consul agent -dev -client 0.0.0.0
+
+script:
+  - make tests
+  - make check

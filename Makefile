@@ -3,9 +3,8 @@ PROJECT_VERSION = 0.1.0
 PROJECT_DESCRIPTION = Consul client
 
 LOCAL_DEPS = inets
-DEPS = edown jsx erlang_uuid lager
+DEPS = jsx erlang_uuid lager
 
-dep_edown = git   https://github.com/uwiger/edown.git master
 dep_jsx = git  https://github.com/talentdeficit/jsx.git    "v2.5.2"
 dep_erlang_uuid = git  https://github.com/travis/erlang-uuid.git   master
 dep_lager = git https://github.com/basho/lager.git  "2.2.3"
