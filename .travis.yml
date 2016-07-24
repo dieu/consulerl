@@ -13,5 +13,7 @@ before_install:
   - docker run -dp 8500:8500/tcp consul agent -dev -client 0.0.0.0
 
 script:
-  - make tests
   - make check
+
+after_success:
+  - make coverage-report
