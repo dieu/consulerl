@@ -29,6 +29,10 @@ setup_txn() ->
   ok = consulerl_eunit:setup_app(),
   ok = consulerl_eunit:setup_httpc_200(?TXN_RESPONSE).
 
+setup_watch() ->
+  ok = consulerl_eunit:setup_app(),
+  ok = consulerl_eunit:setup_httpc_200(?GET_RESPONSE, ?TIMEOUT/2).
+
 setup_not_found() ->
   ok = consulerl_eunit:setup_app(),
   ok = consulerl_eunit:setup_httpc_404().
@@ -193,11 +197,19 @@ txn_test_() ->
     ]
   } end).
 
-txn_not_found_test_() ->
+txn_conflict_test_() ->
   ?setup(fun setup_conflict/0, fun consulerl_eunit:stop/1, fun(_) -> {
     inparallel, [
       command(consulerl_kv, txn, [[{get, "test"}], []], {error, "Conflict", ?TXN_ERROR_RESPONSE_MAP}),
       command_async(consulerl_kv, txn, [self(), [{get, "test"}], []], {error, "Conflict", ?TXN_ERROR_RESPONSE_MAP})
+    ]
+  } end).
+
+txn_not_found_test_() ->
+  ?setup(fun setup_not_found/0, fun consulerl_eunit:stop/1, fun(_) -> {
+    inparallel, [
+      command(consulerl_kv, txn, [[{get, "test"}], []], {error, "Not Found"}),
+      command_async(consulerl_kv, txn, [self(), [{get, "test"}], []], {error, "Not Found", <<>>})
     ]
   } end).
 
@@ -206,5 +218,35 @@ txn_timeout_test_() ->
     inparallel, [
       command(consulerl_kv, txn, [[{get, "test"}], []], {error, timeout}),
       command_async(consulerl_kv, txn, [self(), [{get, "test"}], []], {error, timeout})
+    ]
+  } end).
+
+watch_test_() ->
+  ?setup(fun setup_watch/0, fun consulerl_eunit:stop/1, fun(_) -> {
+    inparallel, [
+      command(consulerl_kv, watch, ["test"], {ok, ?GET_RESPONSE_MAP}),
+      command_async(consulerl_kv, watch, ["test", self()], {ok, ?GET_RESPONSE_MAP}),
+      command_async(consulerl_kv, watch, ["test", [], self()], {ok, ?GET_RESPONSE_MAP}),
+      command_async(consulerl_kv, watch, ["test", [], self(), 1], {ok, ?GET_RESPONSE_MAP})
+    ]
+  } end).
+
+watch_not_found_test_() ->
+  ?setup(fun setup_not_found/0, fun consulerl_eunit:stop/1, fun(_) -> {
+    inparallel, [
+      command(consulerl_kv, watch, ["test"], {error, "Not Found", <<>>}),
+      command_async(consulerl_kv, watch, ["test", self()], {error, "Not Found", <<>>}),
+      command_async(consulerl_kv, watch, ["test", [], self()], {error, "Not Found", <<>>}),
+      command_async(consulerl_kv, watch, ["test", [], self(), 1], {error, "Not Found", <<>>})
+    ]
+  } end).
+
+watch_timeout_test_() ->
+  ?setup(fun setup_timeout/0, fun consulerl_eunit:stop/1, fun(_) -> {
+    inparallel, [
+      command(consulerl_kv, watch, ["test"], {error, timeout}),
+      command_async(consulerl_kv, watch, ["test", self()], {error, timeout}),
+      command_async(consulerl_kv, watch, ["test", [], self()], {error, timeout}),
+      command_async(consulerl_kv, watch, ["test", [], self(), 1], {error, timeout})
     ]
   } end).

@@ -6,6 +6,7 @@
 -export([
   setup_app/0,
   setup_httpc_200/1,
+  setup_httpc_200/2,
   setup_httpc_404/0,
   setup_httpc_409/1,
   setup_httpc_timeout/0
@@ -29,6 +30,14 @@ setup_app() ->
 setup_httpc_200(Response) ->
   ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
     apply(M, F, [{self(), {{test, 200, test}, [{"content-type", "application/json"}], Response}} | Args]),
+    {ok, self()}
+  end).
+
+setup_httpc_200(Response, Timeout) ->
+  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
+    WArgs = [{self(), {{test, 200, test}, [{"content-type", "application/json"}], Response}} | Args],
+    apply(M, F, WArgs),
+    timer:apply_after(Timeout, M, F, WArgs),
     {ok, self()}
   end).
 
