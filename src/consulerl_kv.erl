@@ -187,7 +187,12 @@ txn(From, Operations, Args) ->
     "KV" => Tx
   } end, OperationsTxn),
 
-  consulerl_api:put(response_fun(From, fun txn_response/1), [txn], consulerl_util:to_json(Transaction), Args).
+  consulerl_api:put(
+    response_fun(From, fun txn_response/1, fun txn_response/1),
+    [txn],
+    consulerl_util:to_json(Transaction),
+    Args
+  ).
 
 %%%===================================================================
 %%% Internal functions
@@ -287,8 +292,19 @@ response_fun(From, Decode) ->
       consulerl_util:do(From, {ok, Decode(Payload)});
     ({error, _} = Error) ->
       consulerl_util:do(From, Error);
+    ({error, Reason, _}) ->
+      consulerl_util:do(From, {error, Reason})
+  end.
+
+-spec response_fun(ref(), fun((term()) -> term()), fun((term()) -> term())) -> fun((term()) -> ok).
+response_fun(From, Decode, ErrorDecode) ->
+  fun
+    ({ok, Payload}) ->
+      consulerl_util:do(From, {ok, Decode(Payload)});
+    ({error, _} = Error) ->
+      consulerl_util:do(From, Error);
     ({error, Reason, Payload}) ->
-      consulerl_util:do(From, {error, Reason, Decode(Payload)})
+      consulerl_util:do(From, {error, Reason, ErrorDecode(Payload)})
   end.
 
 -spec responses([proplists:proplist()]) -> [map()].

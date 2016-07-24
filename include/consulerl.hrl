@@ -36,3 +36,31 @@
   verb/0
 ]).
 
+
+-ifdef(TEST).
+
+-define(setup(Start, Stop, F), {setup, Start, Stop, F}).
+
+-define(GET_RESPONSE, <<"[{\"LockIndex\":0,\"Key\":\"test\",\"Flags\":0,\"Value\":\"czIz\",\"CreateIndex\":141,\"ModifyIndex\":142}]">>).
+-define(GET_RESPONSE_JSON, [[
+  {<<"LockIndex">>,0},
+  {<<"Key">>,<<"test">>},
+  {<<"Flags">>,0},
+  {<<"Value">>,<<"czIz">>},
+  {<<"CreateIndex">>,141},
+  {<<"ModifyIndex">>,142}
+]]).
+-define(GET_RESPONSE_MAP, #{
+  create_index => 141,
+  flags => 0,
+  key => "test",
+  lock_index => 0,
+  modify_index => 142,
+  value => "s23"
+}).
+-define(PUT_RESPONSE, <<"true">>).
+-define(PUT_RESPONSE_JSON, true).
+-define(DELETE_RESPONSE, <<"true">>).
+-define(DELETE_RESPONSE_JSON, true).
+
+-endif.

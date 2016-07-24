@@ -27,4 +27,4 @@ ERLC_OPTS += +'{parse_transform, lager_transform}'
 SHELL_OPTS += -config rel/shell.config -run consulerl -run sync go
 
 EUNIT_ERL_OPTS += -config rel/shell.config
-#EUNIT_OPTS = verbose
+EUNIT_OPTS = verbose
