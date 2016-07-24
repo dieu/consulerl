@@ -29,10 +29,6 @@ setup_txn() ->
   ok = consulerl_eunit:setup_app(),
   ok = consulerl_eunit:setup_httpc_200(?TXN_RESPONSE).
 
-setup_watch() ->
-  ok = consulerl_eunit:setup_app(),
-  ok = consulerl_eunit:setup_httpc_200(?GET_RESPONSE, ?TIMEOUT/2).
-
 setup_not_found() ->
   ok = consulerl_eunit:setup_app(),
   ok = consulerl_eunit:setup_httpc_404().
@@ -173,8 +169,15 @@ delete_not_found_test_() ->
   ?setup(fun setup_not_found/0, fun consulerl_eunit:stop/1, fun(_) -> {
     inparallel, [
       command(consulerl_kv, delete, ["test"], {error, "Not Found"}),
+      command(consulerl_kv, delete, ["test", true], {error, "Not Found"}),
       command(consulerl_kv, delete, ["test", false], {error, "Not Found"}),
+      command(consulerl_kv, delete, ["test", true, 0], {error, "Not Found"}),
+      command(consulerl_kv, delete, ["test", false, 0], {error, "Not Found"}),
+      command(consulerl_kv, delete, ["test", true, none], {error, "Not Found"}),
       command(consulerl_kv, delete, ["test", false, none], {error, "Not Found"}),
+      command_async(consulerl_kv, delete, [self(), "test", true, 0], {error, "Not Found", <<>>}),
+      command_async(consulerl_kv, delete, [self(), "test", false, 0], {error, "Not Found", <<>>}),
+      command_async(consulerl_kv, delete, [self(), "test", true, none], {error, "Not Found", <<>>}),
       command_async(consulerl_kv, delete, [self(), "test", false, none], {error, "Not Found", <<>>})
     ]
   } end).
@@ -193,7 +196,8 @@ txn_test_() ->
   ?setup(fun setup_txn/0, fun consulerl_eunit:stop/1, fun(_) -> {
     inparallel, [
       command(consulerl_kv, txn, [[{get, "test"}], []], {ok, ?TXN_RESPONSE_MAP}),
-      command_async(consulerl_kv, txn, [self(), [{get, "test"}], []], {ok, ?TXN_RESPONSE_MAP})
+      command_async(consulerl_kv, txn, [self(), [{get, "test"}], []], {ok, ?TXN_RESPONSE_MAP}),
+      command_async(consulerl_kv, txn, [self(), [{set, "test", "test", []}], []], {ok, ?TXN_RESPONSE_MAP})
     ]
   } end).
 
@@ -222,12 +226,14 @@ txn_timeout_test_() ->
   } end).
 
 watch_test_() ->
-  ?setup(fun setup_watch/0, fun consulerl_eunit:stop/1, fun(_) -> {
+  ?setup(fun setup_get/0, fun consulerl_eunit:stop/1, fun(_) -> {
     inparallel, [
       command(consulerl_kv, watch, ["test"], {ok, ?GET_RESPONSE_MAP}),
       command_async(consulerl_kv, watch, ["test", self()], {ok, ?GET_RESPONSE_MAP}),
       command_async(consulerl_kv, watch, ["test", [], self()], {ok, ?GET_RESPONSE_MAP}),
-      command_async(consulerl_kv, watch, ["test", [], self(), 1], {ok, ?GET_RESPONSE_MAP})
+      command_async(consulerl_kv, watch, ["test", [], self(), 1], {ok, ?GET_RESPONSE_MAP}),
+      command_async(consulerl_kv, watch, ["test", [], self(), 2], {ok, ?GET_RESPONSE_MAP}),
+      command(consulerl_kv, watch, ["test", [], self(), 0], ok)
     ]
   } end).
 

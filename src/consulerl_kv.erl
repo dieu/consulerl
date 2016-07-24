@@ -55,7 +55,6 @@ get(Key) ->
 get(Key, QArgs) ->
   case consulerl_api:get([kv, Key], QArgs) of
     {ok, [Payload]} -> {ok, response(Payload)};
-    {ok, Value} -> {ok, Value};
     {error, Reason} -> {error, Reason};
     {error, Reason, _} -> {error, Reason}
   end.
@@ -267,11 +266,15 @@ txn_operation({Verb, Key, Value, Flags, Session}) when Verb =:= lock orelse Verb
   "Flags" => Flags
 };
 
-txn_operation({Verb, Key}) when Verb =:= get orelse Verb =:= get_tree orelse Verb =:= delete orelse Verb =:= delete_tree ->
-  #{
-    "Verb" => Verb,
-    "Key" => Key
-  };
+txn_operation({Verb, Key}) when Verb =:= get orelse Verb =:= get_tree -> #{
+  "Verb" => Verb,
+  "Key" => Key
+};
+
+txn_operation({Verb, Key}) when Verb =:= delete orelse Verb =:= delete_tree -> #{
+  "Verb" => Verb,
+  "Key" => Key
+};
 
 txn_operation({Verb, Key, Index}) when Verb =:= check_index orelse Verb =:= delete_cas -> #{
   "Verb" => Verb,

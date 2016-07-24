@@ -9,7 +9,8 @@
   setup_httpc_200/2,
   setup_httpc_404/0,
   setup_httpc_409/1,
-  setup_httpc_timeout/0
+  setup_httpc_timeout/0,
+  setup_error/0
 ]).
 
 -export([
@@ -55,6 +56,12 @@ setup_httpc_409(Error) ->
 
 setup_httpc_timeout() ->
   ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {_, _, _}}]) ->
+    {ok, self()}
+  end).
+
+setup_error() ->
+  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Arg}}]) ->
+    apply(M, F, [{error, error} | Arg]),
     {ok, self()}
   end).
 

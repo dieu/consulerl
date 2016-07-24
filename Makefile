@@ -4,6 +4,8 @@ PROJECT_DESCRIPTION = Consul client
 COVER=1
 
 LOCAL_DEPS = ssl inets
+PLT_APPS = asn1 crypto public_key ssl inets
+
 DEPS = jsx erlang_uuid lager
 
 dep_jsx = git  https://github.com/talentdeficit/jsx.git    "v2.5.2"
@@ -21,17 +23,13 @@ dep_sync = git  git://github.com/rustyio/sync.git   master
 
 include erlang.mk
 
-UNIVERSAL_ERLC_OPTS += -Werror +debug_info +warn_export_vars +warn_shadow_vars +warn_obsolete_guard
-
-ERLC_OPTS += $(UNIVERSAL_ERLC_OPTS)
+ERLC_OPTS += -Werror +debug_info +warn_export_vars +warn_shadow_vars +warn_obsolete_guard
 ERLC_OPTS += +'{parse_transform, lager_transform}'
 
 SHELL_OPTS += -config rel/shell.config -run consulerl -run sync go
 
 EUNIT_ERL_OPTS += -config rel/shell.config
 EUNIT_OPTS = verbose
-
-PLT_APPS = asn1 crypto public_key ssl inets
 
 coverage-report: $(shell ls -1rt `find . -type f -name \eunit.coverdata 2>/dev/null` | tail -n1)
 	$(gen_verbose) erl -noshell -pa ebin deps/*/ebin -eval 'ecoveralls:travis_ci("./eunit.coverdata"), init:stop()'
