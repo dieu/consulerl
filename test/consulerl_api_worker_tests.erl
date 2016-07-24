@@ -22,26 +22,17 @@ setup_delete() ->
   ok = consulerl_eunit:setup_httpc_200(?DELETE_RESPONSE),
   setup_worker().
 
-get_api({ok, Pid}) ->
-  ok = consulerl_api_worker:get(Pid, self(), [test], []),
-  Response = consulerl_util:receive_response(),
-  ?_assertEqual({ok, ?GET_RESPONSE_JSON}, Response).
-
-put_api({ok, Pid}) ->
-  ok = consulerl_api_worker:put(Pid, self(), [test], test, []),
-  Response = consulerl_util:receive_response(),
-  ?_assertEqual({ok, ?PUT_RESPONSE_JSON}, Response).
-
-delete_api({ok, Pid}) ->
-  ok = consulerl_api_worker:delete(Pid, self(), [test], []),
-  Response = consulerl_util:receive_response(),
-  ?_assertEqual({ok, ?DELETE_RESPONSE_JSON}, Response).
-
 get_test_() ->
-  ?setup(fun setup_get/0, fun consulerl_eunit:stop/1, fun get_api/1).
+  ?setup(fun setup_get/0, fun consulerl_eunit:stop/1, fun({ok, Pid}) ->
+    consulerl_eunit:command_async(consulerl_api_worker, get, [Pid, self(), [test], []], {ok, ?GET_RESPONSE_JSON})
+  end).
 
 put_test_() ->
-  ?setup(fun setup_put/0, fun consulerl_eunit:stop/1, fun put_api/1).
+  ?setup(fun setup_put/0, fun consulerl_eunit:stop/1,  fun({ok, Pid}) ->
+    consulerl_eunit:command_async(consulerl_api_worker, put, [Pid, self(), [test], test, []], {ok, ?PUT_RESPONSE_JSON})
+  end).
 
 delete_test_() ->
-  ?setup(fun setup_delete/0, fun consulerl_eunit:stop/1, fun delete_api/1).
+  ?setup(fun setup_delete/0, fun consulerl_eunit:stop/1,  fun({ok, Pid}) ->
+    consulerl_eunit:command_async(consulerl_api_worker, delete, [Pid, self(), [test], []], {ok, ?DELETE_RESPONSE_JSON})
+  end).

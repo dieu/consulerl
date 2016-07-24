@@ -83,9 +83,12 @@ delete(From, Path, QArgs) ->
 delete(Pid, From, Path, QArgs) ->
   consulerl_api_worker:delete(Pid, From, Path, QArgs).
 
--spec terminate(pid()) -> ok | {error, term()}.
-terminate(Pid) ->
-  consulerl_api_sup:stop(Pid).
+-spec terminate(pid() | term()) -> ok | {error, term()}.
+terminate(Pid) when is_pid(Pid) ->
+  consulerl_api_sup:stop(Pid);
+
+terminate(_) ->
+  ok.
 
 %%%===================================================================
 %%% Internal functions

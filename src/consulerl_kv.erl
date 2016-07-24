@@ -101,18 +101,18 @@ keys(Prefix, QArgs) ->
 keys(From, Prefix, QArgs) ->
   consulerl_api:get(From, [kv, Prefix], [keys | QArgs]).
 
--spec put(string(), term()) -> boolean() | error().
+-spec put(string(), term()) -> return().
 put(Key, Value) ->
   put(Key, Value, 0, none).
 
--spec put(string(), term(), non_neg_integer()) -> boolean() | error().
+-spec put(string(), term(), non_neg_integer()) -> return().
 put(Key, Value, Flags) ->
   put(Key, Value, Flags, none).
 
--spec put(string(), term(), non_neg_integer(), atom()) -> boolean() | error().
+-spec put(string(), term(), non_neg_integer(), none | non_neg_integer()) -> return().
 put(Key, Value, Flags, CAS) ->
   case consulerl_api:put([kv, Key], Value, [{flags, Flags}] ++ cas(CAS)) of
-    {ok, Response} -> Response;
+    {ok, Response} -> {ok, Response};
     {error, Reason} -> {error, Reason};
     {error, Reason, _} -> {error, Reason}
   end.
@@ -144,18 +144,18 @@ watch(Path, QArgs, Callback, Retry) ->
       consulerl_api:get(Watch, [kv, Path], Args)
   end.
 
--spec delete(string()) -> ok | error().
+-spec delete(string()) -> return().
 delete(Key) ->
   delete(Key, false, none).
 
--spec delete(string(), boolean()) -> ok | error().
+-spec delete(string(), boolean()) -> return().
 delete(Key, Recurse) ->
   delete(Key, Recurse, none).
 
--spec delete(string(), boolean(), integer() | none) -> ok | error().
+-spec delete(string(), boolean(), integer() | none) -> return().
 delete(Key, Recurse, CAS) ->
   case consulerl_api:delete([kv, Key], recurse(Recurse) ++ cas(CAS)) of
-    {ok, Response} -> Response;
+    {ok, Response} -> {ok, Response};
     {error, Reason} -> {error, Reason};
     {error, Reason, _} -> {error, Reason}
   end.
@@ -330,20 +330,23 @@ error_response(Payload) -> #{
   waht => proplists:get_value(<<"What">>, Payload)
 }.
 
--spec txn_response(proplists:proplist()) -> map().
-txn_response(Payload) -> #{
-  results => case proplists:get_value(<<"Results">>, Payload) of
+-spec txn_response(proplists:proplist() | binary()) -> map() | binary().
+txn_response(Payload) when is_list(Payload) -> #{
+  results => case proplists:get_value(<<"Results">>, Payload, null) of
     null -> null;
     Value -> lists:map(fun({_, Response}) -> response(Response) end, hd(Value))
   end,
-  errors => case proplists:get_value(<<"Errors">>, Payload) of
+  errors => case proplists:get_value(<<"Errors">>, Payload, null) of
     null -> null;
     Value -> lists:map(fun(Error) -> error_response(Error) end, Value)
   end,
   index => proplists:get_value(<<"Index">>, Payload),
   last_contact => proplists:get_value(<<"LastContact">>, Payload),
   know_leader => proplists:get_value(<<"KnownLeader">>, Payload)
-}.
+};
+
+txn_response(Value) ->
+  Value.
 
 
 -spec dec(integer() | infinity) -> integer() | infinity.
@@ -364,7 +367,7 @@ recurse(true) ->
 recurse(false) ->
   [].
 
--spec cas(atom()) -> list().
+-spec cas(none | non_neg_integer()) -> list().
 cas(none) ->
   [];
 
