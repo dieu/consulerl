@@ -126,7 +126,9 @@ handle_cast({get, From, Path, QArgs}, #client{host = Host, port = Port, acl = Ac
 handle_cast({put, From, Path, Value, QArgs}, #client{host = Host, port = Port, acl = Acl, requests = Queue} = State) ->
   URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{acl, Acl}])),
 
-  {ok, RequestId} = make_request(put, {URL, [], ?MIME_FORM, Value}, From),
+  BinValue = consulerl_util:to_binary(Value),
+
+  {ok, RequestId} = make_request(put, {URL, [], ?MIME_FORM, BinValue}, From),
 
   {noreply, State#client{
     requests = [RequestId | Queue]

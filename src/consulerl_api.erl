@@ -65,7 +65,7 @@ put(From, Path, Value, QArgs) ->
 put(Pid, From, Path, Value, QArgs) ->
   consulerl_api_worker:put(Pid, From, Path, Value, QArgs).
 
--spec delete(list(), list()) -> {ok, term()} | {error, term()}.
+-spec delete(list(), list()) -> return().
 delete(Path, QArgs) ->
   consulerl_api_sup:execute(fun(Pid) ->
     ok = delete(Pid, self(), Path, QArgs),

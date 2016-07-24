@@ -6,7 +6,9 @@
 -export([
   do/2,
   receive_response/0,
-  to_json/1
+  to_json/1,
+  to_binary/1,
+  base64encode/1
 ]).
 
 -export([
@@ -131,3 +133,26 @@ to_json(Value) when is_integer(Value) ->
 
 to_json(Value) ->
   Value.
+
+-spec to_binary(term()) -> binary().
+to_binary(Value) when is_binary(Value) ->
+  Value;
+
+to_binary(Value) when is_atom(Value) ->
+  to_binary(atom_to_list(Value));
+
+to_binary(Value) when is_list(Value) ->
+  list_to_binary(Value);
+
+to_binary(Value) ->
+  to_binary(base64encode(Value)).
+
+-spec base64encode(term()) -> string().
+base64encode(Value) when is_binary(Value) ->
+  base64:encode_to_string(Value);
+
+base64encode(Value) when is_list(Value) ->
+  base64:encode_to_string(Value);
+
+base64encode(Value) ->
+  base64:encode_to_string(term_to_binary(Value)).

@@ -112,7 +112,7 @@ put(Key, Value, Flags) ->
 -spec put(string(), term(), non_neg_integer(), atom()) -> boolean() | error().
 put(Key, Value, Flags, CAS) ->
   case consulerl_api:put([kv, Key], Value, [{flags, Flags}] ++ cas(CAS)) of
-    {ok, Response} -> list_to_atom(Response);
+    {ok, Response} -> Response;
     {error, Reason} -> {error, Reason};
     {error, Reason, _} -> {error, Reason}
   end.
@@ -154,7 +154,11 @@ delete(Key, Recurse) ->
 
 -spec delete(string(), boolean(), integer() | none) -> ok | error().
 delete(Key, Recurse, CAS) ->
-  consulerl_api:delete([kv, Key], recurse(Recurse) ++ cas(CAS)).
+  case consulerl_api:delete([kv, Key], recurse(Recurse) ++ cas(CAS)) of
+    {ok, Response} -> Response;
+    {error, Reason} -> {error, Reason};
+    {error, Reason, _} -> {error, Reason}
+  end.
 
 -spec delete(ref(), string(), boolean(), integer() | none) -> pid().
 delete(From, Key, Recurse, CAS) ->
@@ -162,7 +166,7 @@ delete(From, Key, Recurse, CAS) ->
 
 -spec txn(list(), list()) -> return().
 txn(Operations, Args) ->
-  OperationsTxn = lists:map(fun operation/1, Operations),
+  OperationsTxn = lists:map(fun txn_operation/1, Operations),
 
   Transaction = lists:map(fun(Tx) -> #{
     "KV" => Tx
@@ -171,12 +175,13 @@ txn(Operations, Args) ->
   case consulerl_api:put([txn], consulerl_util:to_json(Transaction), Args) of
     ({ok, Payload}) -> {ok, txn_response(Payload)};
     ({error, _} = Error) -> Error;
+    ({error, Reason, <<>>}) -> {error, Reason};
     ({error, Reason, Payload}) -> {error, Reason, txn_response(Payload)}
   end.
 
 -spec txn(ref(), list(), list()) -> pid().
 txn(From, Operations, Args) ->
-  OperationsTxn = lists:map(fun operation/1, Operations),
+  OperationsTxn = lists:map(fun txn_operation/1, Operations),
 
   Transaction = lists:map(fun(Tx) -> #{
     "KV" => Tx
@@ -213,63 +218,63 @@ watch_fun(Path, QArgs, Callback, Retry) when Retry > 0 orelse Retry =:= infinity
 watch_fun(_, _, _, _) ->
   ok.
 
--spec operation(tuple()) -> map().
-operation({set, Key, Value, Flags}) -> #{
+-spec txn_operation(tuple()) -> map().
+txn_operation({set, Key, Value, Flags}) -> #{
   "Verb" => set,
   "Key" => Key,
-  "Value" => base64encode(Value),
+  "Value" => consulerl_util:base64encode(Value),
   "Falgs" => Flags
 };
 
-operation({set, Key, Value}) -> #{
+txn_operation({set, Key, Value}) -> #{
   "Verb" => set,
   "Key" => Key,
-  "Value" => base64encode(Value)
+  "Value" => consulerl_util:base64encode(Value)
 };
 
-operation({cas, Key, Value, Index}) -> #{
+txn_operation({cas, Key, Value, Index}) -> #{
   "Verb" => set,
   "Key" => Key,
-  "Value" => base64encode(Value),
+  "Value" => consulerl_util:base64encode(Value),
   "Index" => Index
 };
 
-operation({cas, Key, Value, Flags, Index}) -> #{
+txn_operation({cas, Key, Value, Flags, Index}) -> #{
   "Verb" => set,
   "Key" => Key,
-  "Value" => base64encode(Value),
+  "Value" => consulerl_util:base64encode(Value),
   "Index" => Index,
   "Flags" => Flags
 };
 
-operation({Verb, Key, Value, Session}) when Verb =:= lock orelse Verb =:= unlock -> #{
+txn_operation({Verb, Key, Value, Session}) when Verb =:= lock orelse Verb =:= unlock -> #{
   "Verb" => Verb,
   "Key" => Key,
-  "Value" => base64encode(Value),
+  "Value" => consulerl_util:base64encode(Value),
   "Session" => Session
 };
 
-operation({Verb, Key, Value, Flags, Session}) when Verb =:= lock orelse Verb =:= unlock -> #{
+txn_operation({Verb, Key, Value, Flags, Session}) when Verb =:= lock orelse Verb =:= unlock -> #{
   "Verb" => Verb,
   "Key" => Key,
-  "Value" => base64encode(Value),
+  "Value" => consulerl_util:base64encode(Value),
   "Session" => Session,
   "Flags" => Flags
 };
 
-operation({Verb, Key}) when Verb =:= get orelse Verb =:= get_tree orelse Verb =:= delete orelse Verb =:= delete_tree ->
+txn_operation({Verb, Key}) when Verb =:= get orelse Verb =:= get_tree orelse Verb =:= delete orelse Verb =:= delete_tree ->
   #{
     "Verb" => Verb,
     "Key" => Key
   };
 
-operation({Verb, Key, Index}) when Verb =:= check_index orelse Verb =:= delete_cas -> #{
+txn_operation({Verb, Key, Index}) when Verb =:= check_index orelse Verb =:= delete_cas -> #{
   "Verb" => Verb,
   "Key" => Key,
   "Index" => Index
 };
 
-operation({Verb, Key, Session}) when Verb =:= check_session -> #{
+txn_operation({Verb, Key, Session}) when Verb =:= check_session -> #{
   "Verb" => Verb,
   "Key" => Key,
   "Session" => Session
@@ -327,7 +332,7 @@ txn_response(Payload) -> #{
 
 -spec dec(integer() | infinity) -> integer() | infinity.
 dec(Retry) when is_integer(Retry) ->
-  Retry-1;
+  Retry - 1;
 
 dec(infinity) ->
   infinity.
@@ -349,12 +354,3 @@ cas(none) ->
 
 cas(CAS) ->
   [{cas, CAS}].
-
-base64encode(Value) when is_binary(Value) ->
-  base64:encode_to_string(Value);
-
-base64encode(Value) when is_list(Value) ->
-  base64:encode_to_string(Value);
-
-base64encode(Value) ->
-  base64:encode_to_string(term_to_binary(Value)).
