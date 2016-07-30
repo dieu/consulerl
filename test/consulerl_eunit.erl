@@ -21,7 +21,8 @@
 
 -export([
   command/4,
-  command_async/4
+  command_async/4,
+  command_async_twice/4
 ]).
 
 setup_app() ->
@@ -83,4 +84,18 @@ command_async(Module, Method, Args, ExpectedResponse) ->
   Pid = apply(Module, Method, Args),
   Response = consulerl_util:receive_response(),
   ok = consulerl_api:terminate(Pid),
+  ok = consulerl_api:ensure_stopped(Pid),
   ?_assertEqual(ExpectedResponse, Response).
+
+command_async_twice(Module, Method, Args, ExpectedResponse) ->
+  Pid = apply(Module, Method, Args),
+  Response = consulerl_util:receive_response(),
+
+  ok = apply(Module, Method, [Pid | Args]),
+  Response2 = consulerl_util:receive_response(),
+
+  ok = consulerl_api:terminate(Pid),
+  [
+    ?_assertEqual(ExpectedResponse, Response),
+    ?_assertEqual(ExpectedResponse, Response2)
+  ].

@@ -7,7 +7,9 @@
 -export([
   start_link/0,
   execute/1,
-  stop/1
+  execute_once/1,
+  stop/1,
+  ensure_stopped/1
 ]).
 
 -export([
@@ -24,13 +26,21 @@
 start_link() ->
   supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
+-spec execute_once(fun((pid()) -> return())) -> return().
+execute_once(Fun) ->
+  case supervisor:start_child(?SERVER, []) of
+    {ok, Pid} when is_pid(Pid) ->
+      Response = Fun(Pid),
+      ok = stop(Pid),
+      Response;
+    {error, Reason} ->
+      {error, Reason}
+  end.
 
--spec execute(fun((pid()) -> pid() | return())) -> pid() | return().
+-spec execute(fun((pid()) -> pid())) -> pid() | error().
 execute(Fun) ->
   case supervisor:start_child(?SERVER, []) of
     {ok, Pid} when is_pid(Pid) ->
-      Fun(Pid);
-    {ok, Pid, _} when is_pid(Pid) ->
       Fun(Pid);
     {error, Reason} ->
       {error, Reason}
@@ -39,6 +49,10 @@ execute(Fun) ->
 -spec stop(pid()) -> ok | {error, term()}.
 stop(Pid) ->
   supervisor:terminate_child(?SERVER, Pid).
+
+-spec ensure_stopped(pid()) -> ok.
+ensure_stopped(Pid) ->
+  ensure_stopped(Pid, erlang:is_process_alive(Pid)).
 
 %% ===================================================================
 %% Supervisor callbacks
@@ -72,3 +86,10 @@ init([]) ->
   },
 
   {ok, {SupFlags, [ClientWorker]}}.
+
+-spec ensure_stopped(pid(), boolean()) -> ok.
+ensure_stopped(Pid, true) ->
+  ensure_stopped(Pid, erlang:is_process_alive(Pid));
+
+ensure_stopped(_Pid, false) ->
+  ok.

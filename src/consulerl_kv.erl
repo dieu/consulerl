@@ -5,27 +5,31 @@
 -export([
   get/1,
   get/2,
-  get/3
+  get/3,
+  get/4
 ]).
 
 -export([
   get_all/1,
   get_all/2,
-  get_all/3
+  get_all/3,
+  get_all/4
 ]).
 
 -export([
   keys/0,
   keys/1,
   keys/2,
-  keys/3
+  keys/3,
+  keys/4
 ]).
 
 -export([
   put/2,
   put/3,
   put/4,
-  put/5
+  put/5,
+  put/6
 ]).
 
 -export([
@@ -39,12 +43,14 @@
   delete/1,
   delete/2,
   delete/3,
-  delete/4
+  delete/4,
+  delete/5
 ]).
 
 -export([
   txn/2,
-  txn/3
+  txn/3,
+  txn/4
 ]).
 
 -spec get(string()) -> return().
@@ -63,6 +69,10 @@ get(Key, QArgs) ->
 get(From, Key, QArgs) ->
   consulerl_api:get(response_fun(From, fun response/1), [kv, Key], QArgs).
 
+-spec get(pid(), ref(), string(), list()) -> ok.
+get(Pid, From, Key, QArgs) ->
+  consulerl_api:get(Pid, response_fun(From, fun response/1), [kv, Key], QArgs).
+
 -spec get_all(string()) -> return().
 get_all(Prefix) ->
   get_all(Prefix, []).
@@ -79,6 +89,10 @@ get_all(Prefix, QArgs) ->
 -spec get_all(ref(), string(), list()) -> pid().
 get_all(From, Prefix, QArgs) ->
   consulerl_api:get(response_fun(From, fun responses/1), [kv, Prefix], [rescure | QArgs]).
+
+-spec get_all(pid(), ref(), string(), list()) -> ok.
+get_all(Pid, From, Prefix, QArgs) ->
+  consulerl_api:get(Pid, response_fun(From, fun responses/1), [kv, Prefix], [rescure | QArgs]).
 
 -spec keys() -> return().
 keys() ->
@@ -100,6 +114,10 @@ keys(Prefix, QArgs) ->
 keys(From, Prefix, QArgs) ->
   consulerl_api:get(From, [kv, Prefix], [keys | QArgs]).
 
+-spec keys(pid(), ref(), string(), list()) -> ok.
+keys(Pid, From, Prefix, QArgs) ->
+  consulerl_api:get(Pid, From, [kv, Prefix], [keys | QArgs]).
+
 -spec put(string(), term()) -> return().
 put(Key, Value) ->
   put(Key, Value, 0, none).
@@ -119,6 +137,10 @@ put(Key, Value, Flags, CAS) ->
 -spec put(ref(), string(), term(), list(), atom()) -> pid().
 put(From, Key, Value, Flags, CAS) ->
   consulerl_api:put(From, [kv, Key], Value, [{flags, Flags} | cas(CAS)]).
+
+-spec put(pid(), ref(), string(), term(), list(), atom()) -> ok.
+put(Pid, From, Key, Value, Flags, CAS) ->
+  consulerl_api:put(Pid, From, [kv, Key], Value, [{flags, Flags} | cas(CAS)]).
 
 -spec watch(string()) -> return().
 watch(Key) ->
@@ -163,6 +185,10 @@ delete(Key, Recurse, CAS) ->
 delete(From, Key, Recurse, CAS) ->
   consulerl_api:delete(From, [kv, Key], recurse(Recurse) ++ cas(CAS)).
 
+-spec delete(pid(), ref(), string(), boolean(), integer() | none) -> ok.
+delete(Pid, From, Key, Recurse, CAS) ->
+  consulerl_api:delete(Pid, From, [kv, Key], recurse(Recurse) ++ cas(CAS)).
+
 -spec txn(list(), list()) -> return().
 txn(Operations, Args) ->
   OperationsTxn = lists:map(fun txn_operation/1, Operations),
@@ -187,6 +213,22 @@ txn(From, Operations, Args) ->
   } end, OperationsTxn),
 
   consulerl_api:put(
+    response_fun(From, fun txn_response/1, fun txn_response/1),
+    [txn],
+    consulerl_util:to_json(Transaction),
+    Args
+  ).
+
+-spec txn(pid(), ref(), list(), list()) -> ok.
+txn(Pid, From, Operations, Args) ->
+  OperationsTxn = lists:map(fun txn_operation/1, Operations),
+
+  Transaction = lists:map(fun(Tx) -> #{
+    "KV" => Tx
+  } end, OperationsTxn),
+
+  consulerl_api:put(
+    Pid,
     response_fun(From, fun txn_response/1, fun txn_response/1),
     [txn],
     consulerl_util:to_json(Transaction),

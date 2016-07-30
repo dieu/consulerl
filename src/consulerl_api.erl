@@ -22,7 +22,8 @@
 ]).
 
 -export([
-  terminate/1
+  terminate/1,
+  ensure_stopped/1
 ]).
 
 %%%===================================================================
@@ -31,7 +32,7 @@
 
 -spec get(list(), list()) -> return().
 get(Path, QArgs) ->
-  consulerl_api_sup:execute(fun(Pid) ->
+  consulerl_api_sup:execute_once(fun(Pid) ->
     ok = get(Pid, self(), Path, QArgs),
     consulerl_util:receive_response()
   end).
@@ -49,7 +50,7 @@ get(Pid, From, Path, QArgs) ->
 
 -spec put(list(), term(), list()) -> return().
 put(Path, Value, QArgs) ->
-  consulerl_api_sup:execute(fun(Pid) ->
+  consulerl_api_sup:execute_once(fun(Pid) ->
     ok = put(Pid, self(), Path, Value, QArgs),
     consulerl_util:receive_response()
   end).
@@ -67,7 +68,7 @@ put(Pid, From, Path, Value, QArgs) ->
 
 -spec delete(list(), list()) -> return().
 delete(Path, QArgs) ->
-  consulerl_api_sup:execute(fun(Pid) ->
+  consulerl_api_sup:execute_once(fun(Pid) ->
     ok = delete(Pid, self(), Path, QArgs),
     consulerl_util:receive_response()
   end).
@@ -88,6 +89,13 @@ terminate(Pid) when is_pid(Pid) ->
   consulerl_api_sup:stop(Pid);
 
 terminate(_) ->
+  ok.
+
+-spec ensure_stopped(pid() | term()) -> ok.
+ensure_stopped(Pid) when is_pid(Pid) ->
+  consulerl_api_sup:ensure_stopped(Pid);
+
+ensure_stopped(_) ->
   ok.
 
 %%%===================================================================

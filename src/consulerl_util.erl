@@ -71,6 +71,10 @@ build_args([{Key, Value} | T], Acc) ->
 build_args([Key | T], Acc) when is_atom(Key) ->
   build_args(T, [atom_to_list(Key) | Acc]);
 
+build_args([Ignore | T], Acc) -> %% ignore what can't covert
+  ok = lager:warning("Can't build argument to url; argument=~p", [Ignore]),
+  build_args(T, Acc);
+
 build_args([], Acc) ->
   string:join(lists:reverse(Acc), "&").
 

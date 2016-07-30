@@ -25,11 +25,14 @@ include erlang.mk
 
 ERLC_OPTS += -Werror +debug_info +warn_export_vars +warn_shadow_vars +warn_obsolete_guard
 ERLC_OPTS += +'{parse_transform, lager_transform}'
+TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'
 
 SHELL_OPTS += -config rel/shell.config -run consulerl -run sync go
 
 EUNIT_ERL_OPTS += -config rel/shell.config
 EUNIT_OPTS = verbose
+
+DIALYZER_DIRS = ebin -r $(wildcard src) $(ALL_APPS_DIRS)
 
 coverage-report: $(shell ls -1rt `find . -type f -name \eunit.coverdata 2>/dev/null` | tail -n1)
 	$(gen_verbose) erl -noshell -pa ebin deps/*/ebin -eval 'ecoveralls:travis_ci("./eunit.coverdata"), init:stop()'
