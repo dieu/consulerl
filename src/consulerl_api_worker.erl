@@ -88,6 +88,7 @@ response(Response, Pid, RequestFrom) ->
 %%--------------------------------------------------------------------
 -spec init(Args :: term()) -> {ok, State :: client_state()}.
 init([Host, Port, Acl]) ->
+  _ = process_flag(trap_exit, true),
   {ok, #client{
     host = Host,
     port = Port,
