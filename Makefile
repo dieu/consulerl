@@ -25,7 +25,7 @@ include erlang.mk
 
 ERLC_OPTS += -Werror +debug_info +warn_export_vars +warn_shadow_vars +warn_obsolete_guard
 ERLC_OPTS += +'{parse_transform, lager_transform}'
-TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'
+TEST_ERLC_OPTS += +'{parse_transform, lager_transform}' +'{lager_truncation_size, 20480}'
 
 SHELL_OPTS += -config rel/shell.config -run consulerl -run sync go
 

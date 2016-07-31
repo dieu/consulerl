@@ -6,7 +6,10 @@
 -export([
   do/2,
   receive_response/0,
+  to_interval/1,
+  to_interval/2,
   to_binary/1,
+  list_of_strings_to_binary/1,
   base64encode/1
 ]).
 
@@ -31,6 +34,7 @@ receive_response() ->
       Response
   after
     ?TIMEOUT ->
+      ok = lager:debug("Don't received response; timeout=~p", [?TIMEOUT]),
       {error, timeout}
   end.
 
@@ -124,6 +128,23 @@ response({Ref, {error, Reason}}) -> {Ref, {error, Reason}};
 
 response({error, Reason}) -> {error, Reason}.
 
+-spec to_interval(binary() | string() | pos_integer() | term()) -> binary() | none.
+to_interval(Binary) when is_binary(Binary) ->
+  Binary;
+
+to_interval(List) when is_list(List) ->
+  to_binary(List);
+
+to_interval(Int) when is_integer(Int) ->
+  to_interval(Int, "s");
+
+to_interval(_) ->
+  none.
+
+-spec to_interval(pos_integer(), string()) -> binary().
+to_interval(Int, Metric) when is_integer(Int) andalso is_list(Metric) ->
+  <<(list_to_binary(integer_to_list(Int)))/binary, (list_to_binary(Metric))/binary>>.
+
 -spec to_binary(term()) -> binary().
 to_binary(Value) when is_binary(Value) ->
   Value;
@@ -136,6 +157,13 @@ to_binary(Value) when is_list(Value) ->
 
 to_binary(Value) ->
   to_binary(base64encode(Value)).
+
+-spec list_of_strings_to_binary(list() | none) -> list() | none.
+list_of_strings_to_binary(List) when is_list(List) ->
+  lists:map(fun to_binary/1, List);
+
+list_of_strings_to_binary(none) ->
+  none.
 
 -spec base64encode(term()) -> string().
 base64encode(Value) when is_binary(Value) ->

@@ -7,7 +7,9 @@
   setup_app/0,
   setup_httpc_200/1,
   setup_httpc_200/2,
+  setup_httpc_200_plain/1,
   setup_httpc_404/0,
+  setup_httpc_405/0,
   setup_httpc_409/1,
   setup_httpc_timeout/0,
   setup_error/0
@@ -43,9 +45,21 @@ setup_httpc_200(Response, Timeout) ->
     {ok, self()}
   end).
 
+setup_httpc_200_plain(Response) ->
+  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
+    apply(M, F, [{self(), {{test, 200, test}, [{"content-type", "text/plain; charset=utf-8"}], Response}} | Args]),
+    {ok, self()}
+  end).
+
 setup_httpc_404() ->
   ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
     apply(M, F, [{self(), {{test, 404, "Not Found"}, [{"content-type", "text/plain; charset=utf-8"}], <<>>}} | Args]),
+    {ok, self()}
+  end).
+
+setup_httpc_405() ->
+  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
+    apply(M, F, [{self(), {{test, 405, "Method Not Allowed"}, [{"content-type", "text/plain; charset=utf-8"}], <<>>}} | Args]),
     {ok, self()}
   end).
 

@@ -37,11 +37,7 @@
 
 
 -ifdef(TEST).
-
 -define(TIMEOUT, 10).
-
 -else.
-
 -define(TIMEOUT, timer:seconds(5)).
-
 -endif.
