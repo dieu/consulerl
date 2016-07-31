@@ -145,6 +145,7 @@ handle_cast({delete, From, Path, QArgs}, #client{host = Host, port = Port, acl =
   }};
 
 handle_cast({response, RequestFrom, Response}, #client{requests = Queue} = State) ->
+  ok = lager:debug("Received: response=~p, reqeust_from=~p", [Response, RequestFrom]),
   NewQueue = case consulerl_util:response(Response) of
     {RequestId, Res} when is_pid(RequestId) orelse is_reference(RequestId) ->
       consulerl_util:do(RequestFrom, Res),
@@ -213,6 +214,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 -spec make_request(get | put | delete, tuple(), pid()) -> {ok, term()} | {error, term()}.
 make_request(Method, Body, From) ->
+  ok = lager:debug("HTTP Request: method=~p; body=~p; from=~p", [Method, Body, From]),
   httpc:request(Method, Body, [],
     [{sync, false}, {receiver, {?MODULE, response, [self(), From]}}]
   ).

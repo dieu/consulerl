@@ -1,6 +1,7 @@
 -module(consulerl_kv_tests).
 
 -include("consulerl.hrl").
+-include("consulerl_eunit.hrl").
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -119,8 +120,8 @@ keys_not_found_test_() ->
       command(consulerl_kv, keys, [], {error, "Not Found"}),
       command(consulerl_kv, keys, ["test"], {error, "Not Found"}),
       command(consulerl_kv, keys, ["test", []], {error, "Not Found"}),
-      command_async(consulerl_kv, keys, [self(), "test", []], {error, "Not Found", <<>>}),
-      command_async_twice(consulerl_kv, keys, [self(), "test", []], {error, "Not Found", <<>>})
+      command_async(consulerl_kv, keys, [self(), "test", []], {error, "Not Found"}),
+      command_async_twice(consulerl_kv, keys, [self(), "test", []], {error, "Not Found"})
     ]
   } end).
 
@@ -152,8 +153,8 @@ put_not_found_test_() ->
       command(consulerl_kv, put, ["test", "test"],  {error, "Not Found"}),
       command(consulerl_kv, put, ["test", "test", 0],  {error, "Not Found"}),
       command(consulerl_kv, put, ["test", "test", 0, none],  {error, "Not Found"}),
-      command_async(consulerl_kv, put, [self(), "test", "test", 0, none], {error, "Not Found", <<>>}),
-      command_async_twice(consulerl_kv, put, [self(), "test", "test", 0, none], {error, "Not Found", <<>>})
+      command_async(consulerl_kv, put, [self(), "test", "test", 0, none], {error, "Not Found"}),
+      command_async_twice(consulerl_kv, put, [self(), "test", "test", 0, none], {error, "Not Found"})
     ]
   } end).
 
@@ -189,14 +190,14 @@ delete_not_found_test_() ->
       command(consulerl_kv, delete, ["test", false, 0], {error, "Not Found"}),
       command(consulerl_kv, delete, ["test", true, none], {error, "Not Found"}),
       command(consulerl_kv, delete, ["test", false, none], {error, "Not Found"}),
-      command_async(consulerl_kv, delete, [self(), "test", true, 0], {error, "Not Found", <<>>}),
-      command_async(consulerl_kv, delete, [self(), "test", false, 0], {error, "Not Found", <<>>}),
-      command_async(consulerl_kv, delete, [self(), "test", true, none], {error, "Not Found", <<>>}),
-      command_async(consulerl_kv, delete, [self(), "test", false, none], {error, "Not Found", <<>>}),
-      command_async_twice(consulerl_kv, delete, [self(), "test", true, 0], {error, "Not Found", <<>>}),
-      command_async_twice(consulerl_kv, delete, [self(), "test", false, 0], {error, "Not Found", <<>>}),
-      command_async_twice(consulerl_kv, delete, [self(), "test", true, none], {error, "Not Found", <<>>}),
-      command_async_twice(consulerl_kv, delete, [self(), "test", false, none], {error, "Not Found", <<>>})
+      command_async(consulerl_kv, delete, [self(), "test", true, 0], {error, "Not Found"}),
+      command_async(consulerl_kv, delete, [self(), "test", false, 0], {error, "Not Found"}),
+      command_async(consulerl_kv, delete, [self(), "test", true, none], {error, "Not Found"}),
+      command_async(consulerl_kv, delete, [self(), "test", false, none], {error, "Not Found"}),
+      command_async_twice(consulerl_kv, delete, [self(), "test", true, 0], {error, "Not Found"}),
+      command_async_twice(consulerl_kv, delete, [self(), "test", false, 0], {error, "Not Found"}),
+      command_async_twice(consulerl_kv, delete, [self(), "test", true, none], {error, "Not Found"}),
+      command_async_twice(consulerl_kv, delete, [self(), "test", false, none], {error, "Not Found"})
     ]
   } end).
 
@@ -235,8 +236,8 @@ txn_not_found_test_() ->
   ?setup(fun setup_not_found/0, fun consulerl_eunit:stop/1, fun(_) -> {
     inparallel, [
       command(consulerl_kv, txn, [[{get, "test"}], []], {error, "Not Found"}),
-      command_async(consulerl_kv, txn, [self(), [{get, "test"}], []], {error, "Not Found", <<>>}),
-      command_async_twice(consulerl_kv, txn, [self(), [{get, "test"}], []], {error, "Not Found", <<>>})
+      command_async(consulerl_kv, txn, [self(), [{get, "test"}], []], {error, "Not Found"}),
+      command_async_twice(consulerl_kv, txn, [self(), [{get, "test"}], []], {error, "Not Found"})
     ]
   } end).
 
@@ -264,10 +265,10 @@ watch_test_() ->
 watch_not_found_test_() ->
   ?setup(fun setup_not_found/0, fun consulerl_eunit:stop/1, fun(_) -> {
     inparallel, [
-      command(consulerl_kv, watch, ["test"], {error, "Not Found", <<>>}),
-      command_async(consulerl_kv, watch, ["test", self()], {error, "Not Found", <<>>}),
-      command_async(consulerl_kv, watch, ["test", [], self()], {error, "Not Found", <<>>}),
-      command_async(consulerl_kv, watch, ["test", [], self(), 1], {error, "Not Found", <<>>})
+      command(consulerl_kv, watch, ["test"], {error, "Not Found"}),
+      command_async(consulerl_kv, watch, ["test", self()], {error, "Not Found"}),
+      command_async(consulerl_kv, watch, ["test", [], self()], {error, "Not Found"}),
+      command_async(consulerl_kv, watch, ["test", [], self(), 1], {error, "Not Found"})
     ]
   } end).
 

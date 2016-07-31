@@ -1,6 +1,7 @@
 -module(consulerl_api_worker_tests).
 
 -include("consulerl.hrl").
+-include("consulerl_eunit.hrl").
 
 -include_lib("eunit/include/eunit.hrl").
 

@@ -6,11 +6,11 @@ COVER=1
 LOCAL_DEPS = ssl inets
 PLT_APPS = asn1 crypto public_key ssl inets
 
-DEPS = jsx erlang_uuid lager
+DEPS = erlang_uuid lager jiffy
 
-dep_jsx = git  https://github.com/talentdeficit/jsx.git    "v2.5.2"
 dep_erlang_uuid = git  https://github.com/travis/erlang-uuid.git   master
 dep_lager = git https://github.com/basho/lager.git  "2.2.3"
+dep_jiffy = git https://github.com/davisp/jiffy.git "0.14.8"
 
 TEST_DEPS = meck ecoveralls
 

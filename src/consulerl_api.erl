@@ -4,18 +4,21 @@
 
 %% API
 -export([
+  get/1,
   get/2,
   get/3,
   get/4
 ]).
 
 -export([
+  put/2,
   put/3,
   put/4,
   put/5
 ]).
 
 -export([
+  delete/1,
   delete/2,
   delete/3,
   delete/4
@@ -29,6 +32,10 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+-spec get(list()) -> return().
+get(Path) ->
+  get(Path, []).
 
 -spec get(list(), list()) -> return().
 get(Path, QArgs) ->
@@ -48,6 +55,10 @@ get(From, Path, QArgs) ->
 get(Pid, From, Path, QArgs) ->
   consulerl_api_worker:get(Pid, From, Path, QArgs).
 
+-spec put(list(), term()) -> return().
+put(Path, Value) ->
+  put(Path, Value, []).
+
 -spec put(list(), term(), list()) -> return().
 put(Path, Value, QArgs) ->
   consulerl_api_sup:execute_once(fun(Pid) ->
@@ -65,6 +76,10 @@ put(From, Path, Value, QArgs) ->
 -spec put(pid(), ref(), list(), term(), list()) -> ok.
 put(Pid, From, Path, Value, QArgs) ->
   consulerl_api_worker:put(Pid, From, Path, Value, QArgs).
+
+-spec delete(list()) -> return().
+delete(Path) ->
+  delete(Path, []).
 
 -spec delete(list(), list()) -> return().
 delete(Path, QArgs) ->

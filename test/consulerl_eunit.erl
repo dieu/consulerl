@@ -93,7 +93,6 @@ command_async_twice(Module, Method, Args, ExpectedResponse) ->
 
   ok = apply(Module, Method, [Pid | Args]),
   Response2 = consulerl_util:receive_response(),
-
   ok = consulerl_api:terminate(Pid),
   [
     ?_assertEqual(ExpectedResponse, Response),

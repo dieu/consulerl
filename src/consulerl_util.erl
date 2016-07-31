@@ -6,7 +6,6 @@
 -export([
   do/2,
   receive_response/0,
-  to_json/1,
   to_binary/1,
   base64encode/1
 ]).
@@ -55,7 +54,7 @@ build_path([H | T], Acc) when is_atom(H) ->
   build_path(T, [atom_to_list(H) | Acc]);
 
 build_path([H | T], Acc) ->
-  build_path(T, [H, Acc]);
+  build_path(T, [H | Acc]);
 
 build_path([], Acc) ->
   string:join(lists:reverse(Acc), "/").
@@ -89,54 +88,41 @@ to_string(Key, Value) ->
 response({Ref, {{_Vsn, 200, _Reason}, Headers, Body}}) ->
   ContentType = proplists:get_value("content-type", Headers),
   case ContentType of
-    "application/json" -> {Ref, {ok, jsx:decode(Body)}};
-    _ -> {Ref, Body}
+    "application/json" -> {Ref, {ok, consulerl_json:decode(?JSON, Body)}};
+    _ -> {Ref, {ok, Body}}
+  end;
+
+response({ok, {{_Vsn, _, Reason}, Headers, <<>>}}) ->
+  ContentType = proplists:get_value("content-type", Headers),
+  case ContentType of
+    "application/json" -> {error, Reason};
+    _ -> {error, Reason}
   end;
 
 response({ok, {{_Vsn, _, Reason}, Headers, Body}}) ->
   ContentType = proplists:get_value("content-type", Headers),
   case ContentType of
-    "application/json" -> {error, Reason, jsx:decode(Body)};
+    "application/json" -> {error, Reason, consulerl_json:decode(?JSON, Body)};
     _ -> {error, Reason, Body}
+  end;
+
+response({Ref, {{_Vsn, _, Reason}, Headers, <<>>}}) ->
+  ContentType = proplists:get_value("content-type", Headers),
+  case ContentType of
+    "application/json" -> {Ref, {error, Reason}};
+    _ -> {Ref, {error, Reason}}
   end;
 
 response({Ref, {{_Vsn, _, Reason}, Headers, Body}}) ->
   ContentType = proplists:get_value("content-type", Headers),
   case ContentType of
-    "application/json" -> {Ref, {error, Reason, jsx:decode(Body)}};
+    "application/json" -> {Ref, {error, Reason, consulerl_json:decode(?JSON, Body)}};
     _ -> {Ref, {error, Reason, Body}}
   end;
 
 response({Ref, {error, Reason}}) -> {Ref, {error, Reason}};
 
 response({error, Reason}) -> {error, Reason}.
-
--spec to_json(term()) -> string().
-to_json([C | _] = String) when 32 =< C andalso C < 127 ->
-  "\"" ++ String ++ "\"";
-
-to_json(List) when is_list(List) ->
-  "[" ++ string:join(
-    lists:map(fun to_json/1, List),
-    ","
-  )++ "]";
-
-to_json(Map) when is_map(Map) ->
-  "{" ++ string:join(
-    maps:fold(fun(K, V, Acc) ->
-      [to_json(K) ++ ":" ++ to_json(V) | Acc]
-    end, [], Map),
-    ","
-  ) ++ "}";
-
-to_json(Value) when is_atom(Value) ->
-  to_json(atom_to_list(Value));
-
-to_json(Value) when is_integer(Value) ->
-  integer_to_list(Value);
-
-to_json(Value) ->
-  Value.
 
 -spec to_binary(term()) -> binary().
 to_binary(Value) when is_binary(Value) ->
