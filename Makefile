@@ -6,11 +6,12 @@ COVER=1
 LOCAL_DEPS = ssl inets
 PLT_APPS = asn1 crypto public_key ssl inets
 
-DEPS = erlang_uuid lager jiffy
+DEPS = erlang_uuid lager jiffy hackney
 
 dep_erlang_uuid = git  https://github.com/travis/erlang-uuid.git   master
 dep_lager = git https://github.com/basho/lager.git  "2.2.3"
 dep_jiffy = git https://github.com/davisp/jiffy.git "0.14.8"
+dep_hackney = git https://github.com/benoitc/hackney.git "1.6.1"
 
 TEST_DEPS = meck ecoveralls
 

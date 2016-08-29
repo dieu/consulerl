@@ -27,10 +27,10 @@ setup_delete() ->
 get_test_() ->
   ?setup(fun setup_get/0, fun consulerl_eunit:stop/1, fun(_) -> {
     inparallel, [
-      command(consulerl_api, get, [["test"]], {ok, [?GET_RESPONSE_MAP]}),
-      command(consulerl_api, get, [["test"], []], {ok, [?GET_RESPONSE_MAP]}),
-      command_async(consulerl_api, get, [self(), ["test"], []], {ok, [?GET_RESPONSE_MAP]}),
-      command_async_twice(consulerl_api, get, [self(), ["test"], []], {ok, [?GET_RESPONSE_MAP]})
+      command(consulerl_api, get, [["test"]], {ok, ?GET_RESPONSE_JSON}),
+      command(consulerl_api, get, [["test"], []], {ok, ?GET_RESPONSE_JSON}),
+      command_async(consulerl_api, get, [self(), ["test"], []], {ok, ?GET_RESPONSE_JSON}),
+      command_async_twice(consulerl_api, get, [self(), ["test"], []], {ok, ?GET_RESPONSE_JSON})
     ]
   } end).
 

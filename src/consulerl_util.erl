@@ -5,20 +5,25 @@
 %% API
 -export([
   do/2,
-  receive_response/0,
+  receive_response/1,
   to_interval/1,
   to_interval/2,
   to_binary/1,
   list_of_strings_to_binary/1,
-  base64encode/1
+  base64encode/1,
+  base64decode/1
 ]).
 
 -export([
   build_url/4,
-  response/1
+  dec/1
 ]).
 
 -spec do(ref(), return()) -> ok.
+do({Pid, _} = From, Response) when is_pid(Pid) ->
+  gen_server:reply(From, Response),
+  ok;
+
 do(Pid, Response) when is_pid(Pid) ->
   Pid ! {?EVENT_RESPONSE, Response},
   ok;
@@ -26,11 +31,10 @@ do(Pid, Response) when is_pid(Pid) ->
 do(Fun, Response) when is_function(Fun) ->
   Fun(Response).
 
-
--spec receive_response() -> return().
-receive_response() ->
+-spec receive_response(reference()) -> return().
+receive_response(Ref) ->
   receive
-    {?EVENT_RESPONSE, Response} ->
+    {Ref, Response} ->
       Response
   after
     ?TIMEOUT ->
@@ -88,46 +92,6 @@ to_string(Key, []) ->
 to_string(Key, Value) ->
   io_lib:format("~p=~p", [Key, Value]).
 
--spec response(tuple()) -> {ref(), ok()} | error().
-response({Ref, {{_Vsn, 200, _Reason}, Headers, Body}}) ->
-  ContentType = proplists:get_value("content-type", Headers),
-  case ContentType of
-    "application/json" -> {Ref, {ok, consulerl_json:decode(?JSON, Body)}};
-    _ -> {Ref, {ok, Body}}
-  end;
-
-response({ok, {{_Vsn, _, Reason}, Headers, <<>>}}) ->
-  ContentType = proplists:get_value("content-type", Headers),
-  case ContentType of
-    "application/json" -> {error, Reason};
-    _ -> {error, Reason}
-  end;
-
-response({ok, {{_Vsn, _, Reason}, Headers, Body}}) ->
-  ContentType = proplists:get_value("content-type", Headers),
-  case ContentType of
-    "application/json" -> {error, Reason, consulerl_json:decode(?JSON, Body)};
-    _ -> {error, Reason, Body}
-  end;
-
-response({Ref, {{_Vsn, _, Reason}, Headers, <<>>}}) ->
-  ContentType = proplists:get_value("content-type", Headers),
-  case ContentType of
-    "application/json" -> {Ref, {error, Reason}};
-    _ -> {Ref, {error, Reason}}
-  end;
-
-response({Ref, {{_Vsn, _, Reason}, Headers, Body}}) ->
-  ContentType = proplists:get_value("content-type", Headers),
-  case ContentType of
-    "application/json" -> {Ref, {error, Reason, consulerl_json:decode(?JSON, Body)}};
-    _ -> {Ref, {error, Reason, Body}}
-  end;
-
-response({Ref, {error, Reason}}) -> {Ref, {error, Reason}};
-
-response({error, Reason}) -> {error, Reason}.
-
 -spec to_interval(binary() | string() | pos_integer() | term()) -> binary() | none.
 to_interval(Binary) when is_binary(Binary) ->
   Binary;
@@ -156,7 +120,7 @@ to_binary(Value) when is_list(Value) ->
   list_to_binary(Value);
 
 to_binary(Value) ->
-  to_binary(base64encode(Value)).
+  term_to_binary(Value).
 
 -spec list_of_strings_to_binary(list() | none) -> list() | none.
 list_of_strings_to_binary(List) when is_list(List) ->
@@ -172,5 +136,22 @@ base64encode(Value) when is_binary(Value) ->
 base64encode(Value) when is_list(Value) ->
   base64:encode_to_string(Value);
 
+base64encode(none) ->
+  "";
+
 base64encode(Value) ->
   base64:encode_to_string(term_to_binary(Value)).
+
+-spec base64decode(binary()) -> binary().
+base64decode(Value) when is_binary(Value) ->
+  list_to_binary(base64:decode_to_string(Value));
+
+base64decode(null) ->
+  null.
+
+-spec dec(integer() | infinity) -> integer() | infinity.
+dec(Retry) when is_integer(Retry) ->
+  Retry - 1;
+
+dec(infinity) ->
+  infinity.

@@ -305,6 +305,16 @@ to_atom(<<"Adjustment">>) ->
   adjustment;
 to_atom(<<"KV">>) ->
   kv;
+to_atom(<<"LTime">>) ->
+  ltime;
+to_atom(<<"NodeFilter">>) ->
+  node_filter;
+to_atom(<<"Payload">>) ->
+  payload;
+to_atom(<<"ServiceFilter">>) ->
+  service_filter;
+to_atom(<<"TagFilter">>) ->
+  tag_filter;
 
 to_atom(Binary) ->
   Binary.

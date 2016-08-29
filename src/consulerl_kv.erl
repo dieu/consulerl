@@ -60,7 +60,7 @@ get(Key) ->
 -spec get(string(), list()) -> return().
 get(Key, QArgs) ->
   case consulerl_api:get([kv, Key], QArgs) of
-    {ok, [Payload]} -> {ok, Payload};
+    {ok, [Payload]} -> {ok, get_response(Payload)};
     Error -> Error
   end.
 
@@ -76,18 +76,17 @@ get(Pid, From, Key, QArgs) ->
 get_all(Prefix) ->
   get_all(Prefix, []).
 
-
 -spec get_all(string(), list()) -> return().
 get_all(Prefix, QArgs) ->
-  consulerl_api:get([kv, Prefix], [rescure | QArgs]).
+  get_response(consulerl_api:get([kv, Prefix], [recurse | QArgs])).
 
 -spec get_all(ref(), string(), list()) -> pid().
 get_all(From, Prefix, QArgs) ->
-  consulerl_api:get(From, [kv, Prefix], [rescure | QArgs]).
+  consulerl_api:get(get_all_response_fun(From), [kv, Prefix], [recurse | QArgs]).
 
 -spec get_all(pid(), ref(), string(), list()) -> ok.
 get_all(Pid, From, Prefix, QArgs) ->
-  consulerl_api:get(Pid, From, [kv, Prefix], [rescure | QArgs]).
+  consulerl_api:get(Pid, get_all_response_fun(From), [kv, Prefix], [recurse | QArgs]).
 
 -spec keys() -> return().
 keys() ->
@@ -131,8 +130,9 @@ put(Pid, From, Key, Value, Flags, CAS) ->
 
 -spec watch(string()) -> return().
 watch(Key) ->
-  _ = watch(Key, self()),
-  consulerl_util:receive_response().
+  From = {_, Ref} = {self(), make_ref()},
+  _ = watch(Key, From),
+  consulerl_util:receive_response(Ref).
 
 -spec watch(string(), ref()) -> pid().
 watch(Key, Callback) ->
@@ -226,19 +226,17 @@ watch_fun(Path, QArgs, Callback, Retry) when Retry > 0 orelse Retry =:= infinity
     ({ok, [#{modify_index := ModifyIndex}]}) ->
       consulerl_api:get(self(), fun
         ({ok, [Response]}) ->
-          consulerl_util:do(Callback, {ok, Response}),
-          case watch_fun(Path, QArgs, Callback, dec(Retry)) of
+          consulerl_util:do(Callback, {ok, get_response(Response)}),
+          case watch_fun(Path, QArgs, Callback, consulerl_util:dec(Retry)) of
             ok ->
               ok;
             Watch ->
-              consulerl_api:get(self(), Watch, Path, QArgs)
+              consulerl_api:get(self(), Watch, Path, QArgs, true)
           end;
-        ({error, _} = Error) ->
+        (Error) ->
           consulerl_util:do(Callback, Error)
-      end, Path, [{index, ModifyIndex} | QArgs]);
-    ({error, _} = Error) ->
-      consulerl_util:do(Callback, Error);
-    ({error, _, _} = Error) ->
+      end, Path, [{index, ModifyIndex} | QArgs], true);
+    (Error) ->
       consulerl_util:do(Callback, Error)
   end;
 
@@ -315,12 +313,36 @@ txn_operation({Verb, Key, Session}) when Verb =:= check_session -> #{
 get_response_fun(From) ->
   fun
     ({ok, [Payload]}) ->
-      consulerl_util:do(From, {ok, Payload});
+      consulerl_util:do(From, {ok, get_response(Payload)});
     ({error, _} = Error) ->
       consulerl_util:do(From, Error);
     ({error, Reason, _}) ->
       consulerl_util:do(From, {error, Reason})
   end.
+
+-spec get_all_response_fun(ref()) -> fun((term()) -> ok).
+get_all_response_fun(From) ->
+  fun
+    ({ok, Payload}) ->
+      consulerl_util:do(From, {ok, get_response(Payload)});
+    ({error, _} = Error) ->
+      consulerl_util:do(From, Error);
+    ({error, Reason, _}) ->
+      consulerl_util:do(From, {error, Reason})
+  end.
+
+-spec get_response(return() | map() | list()) -> return() | map() | list().
+get_response({ok, Responses}) when is_list(Responses) ->
+  {ok, lists:map(fun get_response/1, Responses)};
+
+get_response(Responses) when is_list(Responses) ->
+  lists:map(fun get_response/1, Responses);
+
+get_response(#{value := Value} = Response) ->
+  maps:update(value, consulerl_util:base64decode(Value), Response);
+
+get_response(Response) ->
+  Response.
 
 -spec txn_response_fun(ref()) -> fun((term()) -> ok).
 txn_response_fun(From) ->
@@ -336,7 +358,7 @@ txn_response(#{results := Results} = Payload) ->
   NewResults = lists:map(fun
     (#{kv := #{value := Value} = Response}) -> #{
       kv =>
-        maps:update(value, list_to_binary(base64:decode_to_string(Value)), Response)
+        maps:update(value, consulerl_util:base64decode(Value), Response)
       };
     (Response) -> Response
   end, Results),
@@ -344,13 +366,6 @@ txn_response(#{results := Results} = Payload) ->
 
 txn_response(Payload) ->
   Payload.
-
--spec dec(integer() | infinity) -> integer() | infinity.
-dec(Retry) when is_integer(Retry) ->
-  Retry - 1;
-
-dec(infinity) ->
-  infinity.
 
 -spec recurse(boolean()) -> list().
 recurse(true) ->

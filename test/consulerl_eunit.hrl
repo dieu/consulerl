@@ -15,7 +15,7 @@
   key => <<"test">>,
   lock_index => 0,
   modify_index => 142,
-  value => <<"czIz">>
+  value => <<"s23">>
 }).
 -define(PUT_RESPONSE, <<"true">>).
 -define(PUT_RESPONSE_JSON, true).

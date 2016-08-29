@@ -30,7 +30,7 @@ setup_error() ->
 
 get_test_() ->
   ?setup(fun setup_get/0, fun consulerl_eunit:stop/1, fun({ok, Pid}) ->
-    consulerl_eunit:command_async(consulerl_api_worker, get, [Pid, self(), [test], []], {ok, ?GET_RESPONSE_JSON})
+    consulerl_eunit:command_async(consulerl_api_worker, get, [Pid, self(), [test], [], true], {ok, ?GET_RESPONSE_JSON})
   end).
 
 put_test_() ->
@@ -45,5 +45,5 @@ delete_test_() ->
 
 error_test_() ->
   ?setup(fun setup_error/0, fun consulerl_eunit:stop/1, fun({ok, Pid}) ->
-    consulerl_eunit:command_async(consulerl_api_worker, get, [Pid, self(), [test], []], {error, error})
+    consulerl_eunit:command_async(consulerl_api_worker, get, [Pid, self(), [test], [], true], {error, error})
   end).

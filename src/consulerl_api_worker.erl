@@ -10,14 +10,10 @@
 ]).
 
 -export([
-  get/4,
+  sync/3,
+  get/5,
   put/5,
   delete/4
-]).
-
-%% internal callbacks
--export([
-  response/3
 ]).
 
 %% gen_server callbacks
@@ -33,13 +29,28 @@
 -define(SERVER, ?MODULE).
 
 -record(client, {
-  host :: string(),
-  port :: pos_integer(),
-  acl :: string(),
-  requests = [] :: list()
+  host                    :: string(),
+  port                    :: pos_integer(),
+  acl                     :: string(),
+  requests = #{}          :: map()
 }).
 
--type client_state() :: #client{}.
+-record(response, {
+  status                  :: undefined | pos_integer(),
+  reason                  :: term(),
+  headers = []            :: list(),
+  body    = <<>>          :: binary()
+}).
+
+-record(request, {
+  ref                     :: term(),
+  from                    :: ref(),
+  trim_header             :: boolean(),
+  response = #response{}  :: response()
+}).
+
+-type response()          :: #response{}.
+-type client_state()      :: #client{}.
 
 %%%===================================================================
 %%% API
@@ -55,9 +66,18 @@
 start_link(Host, Port, Acl) ->
   gen_server:start_link(?MODULE, [Host, Port, Acl], []).
 
--spec get(pid(), ref(), list(), list()) -> ok.
-get(Pid, From, Path, QArgs) ->
-  gen_server:cast(Pid, {get, From, Path, QArgs}).
+-spec sync(pid(), atom(), list()) -> return().
+sync(Pid, Method, Args) ->
+  case catch gen:call(Pid, '$gen_call', {sync, Method, Args}, ?TIMEOUT) of
+    {ok, Res} ->
+      Res;
+    {'EXIT', _} ->
+      {error, timeout}
+  end.
+
+-spec get(pid(), ref(), list(), list(), boolean()) -> ok.
+get(Pid, From, Path, QArgs, TrimHeader) ->
+  gen_server:cast(Pid, {get, From, Path, QArgs, TrimHeader}).
 
 -spec put(pid(), ref(), list(), term(), list()) -> ok.
 put(Pid, From, Path, Value, QArgs) ->
@@ -66,10 +86,6 @@ put(Pid, From, Path, Value, QArgs) ->
 -spec delete(pid(), ref(), list(), list()) -> ok.
 delete(Pid, From, Path, QArgs) ->
   gen_server:cast(Pid, {delete, From, Path, QArgs}).
-
--spec response(term(), pid(), ref()) -> ok.
-response(Response, Pid, RequestFrom) ->
-  gen_server:cast(Pid, {response, RequestFrom, Response}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -103,7 +119,12 @@ init([Host, Port, Acl]) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_call(Request :: term(), From :: {pid(), Tag :: term()}, State :: client_state()) ->
+  {noreply, NewState :: client_state()} |
   {reply, Reply :: term(), NewState :: client_state()}.
+handle_call({sync, Method, Args}, From, State) ->
+  ok = apply(?SERVER, Method, [self(), From | Args]),
+  {noreply, State};
+
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -115,49 +136,22 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_cast(Request :: term(), State :: client_state()) -> {noreply, NewState :: client_state()}.
-handle_cast({get, From, Path, QArgs}, #client{host = Host, port = Port, acl = Acl, requests = Queue} = State) ->
+handle_cast({get, From, Path, QArgs, Trim}, #client{host = Host, port = Port, acl = Acl} = State) ->
   URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{acl, Acl}])),
 
-  {ok, RequestId} = make_request(get, {URL, []}, From),
+  reply(make_request(get, {URL, [], <<>>}, From), From, Trim, State);
 
-  {noreply, State#client{
-    requests = [RequestId | Queue]
-  }};
-
-handle_cast({put, From, Path, Value, QArgs}, #client{host = Host, port = Port, acl = Acl, requests = Queue} = State) ->
+handle_cast({put, From, Path, Value, QArgs}, #client{host = Host, port = Port, acl = Acl} = State) ->
   URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{acl, Acl}])),
 
   BinValue = consulerl_util:to_binary(Value),
 
-  {ok, RequestId} = make_request(put, {URL, [], ?MIME_FORM, BinValue}, From),
+  reply(make_request(put, {URL, [?MIME_FORM], BinValue}, From), From, true, State);
 
-  {noreply, State#client{
-    requests = [RequestId | Queue]
-  }};
-
-handle_cast({delete, From, Path, QArgs}, #client{host = Host, port = Port, acl = Acl, requests = Queue} = State) ->
+handle_cast({delete, From, Path, QArgs}, #client{host = Host, port = Port, acl = Acl} = State) ->
   URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{acl, Acl}])),
 
-  {ok, RequestId} = make_request(delete, {URL, []}, From),
-
-  {noreply, State#client{
-    requests = [RequestId | Queue]
-  }};
-
-handle_cast({response, RequestFrom, Response}, #client{requests = Queue} = State) ->
-  ok = lager:debug("Received: response=~p, reqeust_from=~p", [Response, RequestFrom]),
-  NewQueue = case consulerl_util:response(Response) of
-    {RequestId, Res} when is_pid(RequestId) orelse is_reference(RequestId) ->
-      consulerl_util:do(RequestFrom, Res),
-      httpc:cancel_request(RequestId),
-      lists:delete(RequestId, Queue);
-    Res ->
-      consulerl_util:do(RequestFrom, Res),
-      Queue
-  end,
-  {noreply, State#client{
-    requests = NewQueue
-  }};
+  reply(make_request(delete, {URL, [], <<>>}, From), From, true, State);
 
 handle_cast(_Request, State) ->
   {noreply, State}.
@@ -174,6 +168,38 @@ handle_cast(_Request, State) ->
 %%--------------------------------------------------------------------
 -spec handle_info(Info :: timeout() | term(), State :: client_state()) ->
   {noreply, NewState :: client_state()}.
+handle_info({hackney_response, Ref, {status, Status, Reason}}, #client{requests = Reqs} = State) ->
+  Request = #request{response = Response} = maps:get(Ref, Reqs),
+  {noreply, State#client{requests = maps:update(Ref, Request#request{
+    response = Response#response{status = Status, reason = Reason}
+  }, Reqs)}};
+
+handle_info({hackney_response, Ref, {headers, Headers}}, #client{requests = Reqs} = State) ->
+  Request = #request{response = Response} = maps:get(Ref, Reqs),
+  {noreply, State#client{requests = maps:update(Ref, Request#request{
+    response = Response#response{headers = Headers}
+  }, Reqs)}};
+
+handle_info({hackney_response, Ref, done}, #client{requests = Reqs} = State) ->
+  #request{response = Response, from = From, trim_header = Trim} = maps:get(Ref, Reqs),
+
+  Reply = response(Response, Trim),
+
+  ok = consulerl_util:do(From, Reply),
+  {noreply, State#client{requests = maps:remove(Ref, Reqs)}};
+
+handle_info({hackney_response, Ref, {error, Reason}}, #client{requests = Reqs} = State) ->
+  Request = #request{response = Response} = maps:get(Ref, Reqs),
+  handle_info({hackney_response, Ref, done}, State#client{requests = maps:update(Ref, Request#request{
+    response = Response#response{reason = Reason}
+  }, Reqs)});
+
+handle_info({hackney_response, Ref, Bin}, #client{requests = Reqs} = State) ->
+  Request = #request{response = #response{body = Body} = Response} = maps:get(Ref, Reqs),
+  {noreply, State#client{requests = maps:update(Ref, Request#request{
+    response = Response#response{body = <<Body/binary, Bin/binary>>}
+  }, Reqs)}};
+
 handle_info(_Info, State) ->
   {noreply, State}.
 
@@ -190,9 +216,9 @@ handle_info(_Info, State) ->
 %%--------------------------------------------------------------------
 -spec terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()), State :: client_state()) -> term().
 terminate(_Reason, #client{requests = Requests}) ->
-  lists:foreach(fun(Request) ->
-    ok = httpc:cancel_request(Request)
-  end, Requests),
+  lists:foreach(fun({Request, _}) ->
+    _ = hackney:cancel_request(Request)
+  end, maps:to_list(Requests)),
   ok.
 
 %%--------------------------------------------------------------------
@@ -213,8 +239,45 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 -spec make_request(get | put | delete, tuple(), pid()) -> {ok, term()} | {error, term()}.
-make_request(Method, Body, From) ->
-  ok = lager:debug("HTTP Request: method=~p; body=~p; from=~p", [Method, Body, From]),
-  httpc:request(Method, Body, [],
-    [{sync, false}, {receiver, {?MODULE, response, [self(), From]}}]
-  ).
+make_request(Method, {URL, Header, Body}, From) ->
+  ok = lager:debug("HTTP Request: method=~p; url=~p; header=~p; body=~p; from=~p; self=~p", [Method, URL, Header, Body, From, self()]),
+  hackney:request(Method, URL, Header, Body, [
+    async,
+    {connect_timeout, infinity},
+    {recv_timeout, infinity},
+    {following_redirect, true}
+  ]).
+
+-spec response(response(), boolean()) -> {ok, string()} | {error, term()}.
+response(#response{status = 200} = Response, true) ->
+  {ok, decode(Response)};
+
+response(#response{status = 200, headers = Headers} = Response, false) ->
+  {ok, decode(Response), Headers};
+
+response(#response{reason = Reason, body = <<>>}, _) ->
+  {error, Reason};
+
+response(#response{reason = Reason} = Response, _) ->
+  {error, Reason, decode(Response)}.
+
+-spec decode(response()) -> binary() | map().
+decode(#response{headers = Headers, body = Body}) ->
+  case proplists:get_value(<<"Content-Type">>, Headers) of
+    <<"application/json">> -> consulerl_json:decode(?JSON, Body);
+    _ -> Body
+  end.
+
+-spec reply(return(), ref(), boolean(), client_state()) -> {noreply, client_state()}.
+reply({ok, RequestId}, From, Trim, #client{requests = Reqs} = State) ->
+  {noreply, State#client{
+    requests = maps:put(RequestId, #request{
+      ref = RequestId,
+      from = From,
+      trim_header = Trim
+    }, Reqs)
+  }};
+
+reply({error, Reason}, From, _, State) ->
+  consulerl_util:do(From, {error, Reason}),
+  {noreply, State}.

@@ -1,5 +1,5 @@
 -define(API_VERSION, "v1").
--define(MIME_FORM, "application/x-www-form-urlencoded; charset=UTF-8").
+-define(MIME_FORM, {<<"content-type">>, <<"application/x-www-form-urlencoded; charset=UTF-8">>}).
 -define(CONTENT_FORM, "application/x-www-form-urlencoded; charset=UTF-8").
 -define(CONTENT_JSON, "application/json; charset=UTF-8").
 -define(SCHEME, "http").
@@ -25,7 +25,7 @@
 -type error() :: {error, term()} | {error, term(), term()}.
 -type return() :: ok() | error().
 
--type ref() :: pid() | fun((term()) -> ok).
+-type ref() :: pid() | {pid(), reference()} | fun((term()) -> ok).
 
 -export_type([
   ok/0,

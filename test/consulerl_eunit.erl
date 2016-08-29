@@ -1,5 +1,6 @@
 -module(consulerl_eunit).
 
+-include("consulerl.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 %% API
@@ -32,59 +33,64 @@ setup_app() ->
   ok.
 
 setup_httpc_200(Response) ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
-    apply(M, F, [{self(), {{test, 200, test}, [{"content-type", "application/json"}], Response}} | Args]),
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    Ref = make_ref(),
+    ok = exec(self(), Ref, 200, test, <<"application/json">>, Response),
+    {ok, Ref}
   end).
 
 setup_httpc_200(Response, Timeout) ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
-    WArgs = [{self(), {{test, 200, test}, [{"content-type", "application/json"}], Response}} | Args],
-    apply(M, F, WArgs),
-    timer:apply_after(Timeout, M, F, WArgs),
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    Ref = make_ref(),
+    Self = self(),
+    timer:apply_after(Timeout, ?MODULE, exec, [Self, Ref, 200, test, <<"application/json">>, Response]),
+    {ok, Ref}
   end).
 
 setup_httpc_200_plain(Response) ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
-    apply(M, F, [{self(), {{test, 200, test}, [{"content-type", "text/plain; charset=utf-8"}], Response}} | Args]),
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    Ref = make_ref(),
+    ok = exec(self(), Ref, 200, test, <<"text/plain; charset=utf-8">>, Response),
+    {ok, Ref}
   end).
 
 setup_httpc_404() ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
-    apply(M, F, [{self(), {{test, 404, "Not Found"}, [{"content-type", "text/plain; charset=utf-8"}], <<>>}} | Args]),
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    Ref = make_ref(),
+    ok = exec(self(), Ref, 404, "Not Found", <<"text/plain; charset=utf-8">>, <<>>),
+    {ok, Ref}
   end).
 
 setup_httpc_405() ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
-    apply(M, F, [{self(), {{test, 405, "Method Not Allowed"}, [{"content-type", "text/plain; charset=utf-8"}], <<>>}} | Args]),
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    Ref = make_ref(),
+    ok = exec(self(), Ref, 405, "Method Not Allowed", <<"text/plain; charset=utf-8">>, <<>>),
+    {ok, Ref}
   end).
 
 setup_httpc_409(Error) ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Args}}]) ->
-    apply(M, F, [{self(), {{test, 409, "Conflict"}, [{"content-type", "application/json"}], Error}} | Args]),
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    Ref = make_ref(),
+    ok = exec(self(), Ref, 409, "Conflict", <<"application/json">>, Error),
+    {ok, Ref}
   end).
 
 setup_httpc_timeout() ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {_, _, _}}]) ->
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    Ref = make_ref(),
+    {ok, Ref}
   end).
 
 setup_error() ->
-  ok = meck:expect(httpc, request, fun(_, _, _, [{sync, false}, {receiver, {M, F, Arg}}]) ->
-    apply(M, F, [{error, error} | Arg]),
-    {ok, self()}
+  ok = meck:expect(hackney, request, fun(_, _, _, _, _) ->
+    {error, error}
   end).
 
 stop_app() ->
   application:stop(consulerl).
 
 stop_httpc() ->
-  ok = meck:unload(httpc).
+  ok = meck:unload(hackney).
 
 stop(_) ->
   ok = stop_httpc(),
@@ -96,19 +102,26 @@ command(Module, Method, Args, ExpectedResponse) ->
 
 command_async(Module, Method, Args, ExpectedResponse) ->
   Pid = apply(Module, Method, Args),
-  Response = consulerl_util:receive_response(),
+  Response = consulerl_util:receive_response(?EVENT_RESPONSE),
   ok = consulerl_api:terminate(Pid),
   ok = consulerl_api:ensure_stopped(Pid),
   ?_assertEqual(ExpectedResponse, Response).
 
 command_async_twice(Module, Method, Args, ExpectedResponse) ->
   Pid = apply(Module, Method, Args),
-  Response = consulerl_util:receive_response(),
+  Response = consulerl_util:receive_response(?EVENT_RESPONSE),
 
   ok = apply(Module, Method, [Pid | Args]),
-  Response2 = consulerl_util:receive_response(),
+  Response2 = consulerl_util:receive_response(?EVENT_RESPONSE),
   ok = consulerl_api:terminate(Pid),
   [
     ?_assertEqual(ExpectedResponse, Response),
     ?_assertEqual(ExpectedResponse, Response2)
   ].
+
+exec(Dest, Ref, Status, Reason, Type, Response) ->
+  Dest ! {hackney_response, Ref, {status, Status, Reason}},
+  Dest ! {hackney_response, Ref, {headers, [{<<"Content-Type">>, Type}]}},
+  Dest ! {hackney_response, Ref, Response},
+  Dest ! {hackney_response, Ref, done},
+  ok.
