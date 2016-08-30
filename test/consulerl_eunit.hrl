@@ -273,3 +273,36 @@
 -define(LEADER_RESPONSE_MAP, <<"172.17.0.2:8300">>).
 -define(PEERS_RESPONSE, <<"[\"172.17.0.2:8300\"]">>).
 -define(PEERS_RESPONSE_MAP, <<"172.17.0.2:8300">>).
+-define(FIRE_RESPONSE_NULL, <<"{\"ID\":\"1aa47bfa-86e3-17c2-c002-c5a65d2ab6f0\",\"Name\":\"test\",\"Payload\":null,\"NodeFilter\":\"\",\"ServiceFilter\":\"\",\"TagFilter\":\"\",\"Version\":1,\"LTime\":0}">>).
+-define(FIRE_RESPONSE_NULL_MAP, #{
+  id => <<"1aa47bfa-86e3-17c2-c002-c5a65d2ab6f0">>,
+  ltime => 0,
+  name => <<"test">>,
+  node_filter => <<>>,
+  payload => null,
+  service_filter => <<>>,
+  tag_filter => <<>>,
+  version => 1
+}).
+-define(FIRE_RESPONSE, <<"{\"ID\":\"8474d5c6-8820-1853-610e-fa707301389f\",\"Name\":\"test\",\"Payload\":\"dGVzdA==\",\"NodeFilter\":\"\",\"ServiceFilter\":\"\",\"TagFilter\":\"\",\"Version\":1,\"LTime\":0}">>).
+-define(FIRE_RESPONSE_MAP, #{
+  id => <<"8474d5c6-8820-1853-610e-fa707301389f">>,
+  ltime => 0,
+  name => <<"test">>,
+  node_filter => <<>>,
+  payload => <<"test">>,
+  service_filter => <<>>,
+  tag_filter => <<>>,
+  version => 1
+}).
+-define(LIST_RESPONSE, <<"[{\"ID\":\"f6720d88-5d38-c34e-8a9f-1cc61cf04a8c\",\"Name\":\"test\",\"Payload\":\"dGVzdA==\",\"NodeFilter\":\"\",\"ServiceFilter\":\"\",\"TagFilter\":\"\",\"Version\":1,\"LTime\":2}]">>).
+-define(LIST_RESPONSE_MAP, [#{
+  id => <<"f6720d88-5d38-c34e-8a9f-1cc61cf04a8c">>,
+  ltime => 2,
+  name => <<"test">>,
+  node_filter => <<>>,
+  payload => <<"test">>,
+  service_filter => <<>>,
+  tag_filter => <<>>,
+  version => 1
+}]).

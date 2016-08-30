@@ -87,10 +87,13 @@ build_args([], Acc) ->
 
 -spec to_string(term(), list()) -> string().
 to_string(Key, []) ->
-  io_lib:format("~p=", [Key]);
+  io_lib:format("~s=", [Key]);
+
+to_string(Key, Value) when is_integer(Value) ->
+  io_lib:format("~s=~p", [Key, Value]);
 
 to_string(Key, Value) ->
-  io_lib:format("~p=~p", [Key, Value]).
+  io_lib:format("~s=~s", [Key, Value]).
 
 -spec to_interval(binary() | string() | pos_integer() | term()) -> binary() | none.
 to_interval(Binary) when is_binary(Binary) ->

@@ -183,6 +183,8 @@ handle_info({hackney_response, Ref, {headers, Headers}}, #client{requests = Reqs
 handle_info({hackney_response, Ref, done}, #client{requests = Reqs} = State) ->
   #request{response = Response, from = From, trim_header = Trim} = maps:get(Ref, Reqs),
 
+  ok = lager:debug("response=~p", [Response]),
+
   Reply = response(Response, Trim),
 
   ok = consulerl_util:do(From, Reply),

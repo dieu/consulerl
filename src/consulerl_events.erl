@@ -22,13 +22,13 @@
 
 -spec fire(string()) -> return().
 fire(Name) ->
-  fire(Name, none, none, none, none, none).
+  fire(Name, <<>>, none, none, none, none).
 
--spec fire(string(), term()) -> return().
+-spec fire(string(), binary()) -> return().
 fire(Name, Event) ->
   fire(Name, Event, none, none, none, none).
 
--spec fire(string(), binary() | none, string() | none, string() | none, string() | none, string() | none) -> return().
+-spec fire(string(), binary(), string() | none, string() | none, string() | none, string() | none) -> return().
 fire(Name, Event, DC, Node, Service, Tag) ->
   QArgs = lists:filtermap(fun
     ({_, none}) -> false;
