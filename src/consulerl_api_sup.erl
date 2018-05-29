@@ -77,11 +77,11 @@ init([]) ->
   {ok, Host} = application:get_env(consulerl, hostname),
   {ok, Port} = application:get_env(consulerl, port),
   {ok, ACL} = application:get_env(consulerl, acl),
-
-
+  
+  AclSettings = parse_acl_config(ACL),
   ClientWorker = {
     consulerl_api_worker,
-    {consulerl_api_worker, start_link, [Host, Port, ACL]},
+    {consulerl_api_worker, start_link, [Host, Port, AclSettings]},
     Restart, Shutdown, Worker, [consulerl_api_worker]
   },
 
@@ -93,3 +93,9 @@ ensure_stopped(Pid, true) ->
 
 ensure_stopped(_Pid, false) ->
   ok.
+
+-spec parse_acl_config(Acl :: {string() | atom(), string()} | string()) -> ok.
+parse_acl_config({AclKey,Acl}) ->
+  {AclKey,Acl};
+parse_acl_config(Acl) ->
+    {acl, Acl}.

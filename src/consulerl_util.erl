@@ -43,11 +43,14 @@ receive_response(Ref) ->
   end.
 
 -spec build_url(string(), pos_integer(), list(), list()) -> string().
+
 build_url([$h, $t, $t, $p, $:, $/, $/ | Host], Port, Paths, QArgs) ->
+  build_url(Host, Port, Paths, QArgs);
+build_url([$h, $t, $t, $p, $s, $:, $/, $/ | Host], Port, Paths, QArgs) ->
   build_url(Host, Port, Paths, QArgs);
 
 build_url(Host, Port, Paths, QArgs) ->
-  lists:flatten(io_lib:format("http://~s:~p/~s/~s", [Host, Port, ?API_VERSION, build_full_path(Paths, QArgs)])).
+  lists:flatten(io_lib:format("https://~s:~p/~s/~s", [Host, Port, ?API_VERSION, build_full_path(Paths, QArgs)])).
 
 -spec build_full_path(list(), list()) -> string().
 build_full_path(Paths, QArgs) ->
