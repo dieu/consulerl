@@ -31,7 +31,7 @@
 -record(client, {
   host                    :: string(),
   port                    :: pos_integer(),
-  acl                     :: string(),
+  acl                     :: {Key :: string(), Acl :: string()},
   requests = #{}          :: map()
 }).
 
@@ -94,7 +94,7 @@ delete(Pid, From, Path, QArgs) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Initializes the server
+%% Initializes the serveracl_key
 %%
 %% @spec init(Args) -> {ok, State} |
 %%                     {ok, State, Timeout} |
@@ -103,12 +103,12 @@ delete(Pid, From, Path, QArgs) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec init(Args :: term()) -> {ok, State :: client_state()}.
-init([Host, Port, Acl]) ->
+init([Host, Port, {AclKey, Acl}]) ->
   _ = process_flag(trap_exit, true),
   {ok, #client{
     host = Host,
     port = Port,
-    acl = Acl
+    acl = {AclKey, Acl}
   }}.
 
 %%--------------------------------------------------------------------
@@ -136,20 +136,20 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_cast(Request :: term(), State :: client_state()) -> {noreply, NewState :: client_state()}.
-handle_cast({get, From, Path, QArgs, Trim}, #client{host = Host, port = Port, acl = Acl} = State) ->
-  URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{acl, Acl}])),
+handle_cast({get, From, Path, QArgs, Trim}, #client{host = Host, port = Port, acl = {AclKey, Acl}} = State) ->
+  URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{AclKey, Acl}])),
 
   reply(make_request(get, {URL, [], <<>>}, From), From, Trim, State);
 
-handle_cast({put, From, Path, Value, QArgs}, #client{host = Host, port = Port, acl = Acl} = State) ->
-  URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{acl, Acl}])),
+handle_cast({put, From, Path, Value, QArgs}, #client{host = Host, port = Port, acl = {AclKey, Acl}} = State) ->
+  URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{AclKey, Acl}])),
 
   BinValue = consulerl_util:to_binary(Value),
 
   reply(make_request(put, {URL, [?MIME_FORM], BinValue}, From), From, true, State);
 
-handle_cast({delete, From, Path, QArgs}, #client{host = Host, port = Port, acl = Acl} = State) ->
-  URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{acl, Acl}])),
+handle_cast({delete, From, Path, QArgs}, #client{host = Host, port = Port, acl = {AclKey, Acl}} = State) ->
+  URL = consulerl_util:build_url(Host, Port, Path, lists:merge(QArgs, [{AclKey, Acl}])),
 
   reply(make_request(delete, {URL, [], <<>>}, From), From, true, State);
 
