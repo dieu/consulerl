@@ -31,7 +31,7 @@
 
 -ifdef(TEST).
 
--define(TIMEOUT, 5000).
+-define(TIMEOUT, 10).
 
 -else.
 
