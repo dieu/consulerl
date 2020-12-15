@@ -5,9 +5,9 @@
 
 -spec decode(atom(), iodata()) -> term().
 decode(jiffy, IoData) ->
-    Decoded = jsx:decode(IoData, [return_maps]),
+    Decoded = jiffy:decode(IoData, [return_maps]),
     consulerl_atom:keys_to_atom(Decoded).
 
 -spec encode(atom(), term()) -> iodata().
 encode(jiffy, Term) ->
-    jsx:encode(Term, []).
+    jiffy:encode(Term, []).

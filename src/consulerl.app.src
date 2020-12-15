@@ -8,7 +8,7 @@
     stdlib,
     hackney,
     uuid,
-    jsx,
+    jiffy,
     lager
    ]},
   {env,[
